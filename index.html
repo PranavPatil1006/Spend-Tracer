@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+</head>
+
+
+<body>
+    
+        <div class=
+        "container">
+            <h1>Expense Tracker</h1>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+    
+            <form id="expense-form">
+                <div class="input-rows">
+                    <div class="input-row">
+                        <input type="text" placeholder="Expense Name" required />
+                        <input type="number" placeholder="Amount" required />
+                        <select required>
+                            <option value="" disabled selected>Select Category</option>
+                            <option value="Food">Food</option>
+                            <option value="Transport">Transport</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <input type="date" required />
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button type="button" id="add-row">Add New Row</button>
+                    <button type="submit">Add All Expenses</button>
+                </div>
+            </form>
+    
+            <div class="expense-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Expense Name</th>
+                            <th>Amount</th>
+                            <th>Category</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expense-list"></tbody>
+                </table>
+                <div class="total-amount">
+                    <strong>Total:</strong> Rs<span id="total-amount">0</span>
+                </div>
+            </div>
+            <div class="filter">
+                <label for="filter-category">Filter by Category:</label>
+                <select id="filter-category">
+                    <option value="All">All</option>
+                    <option value="Food">Food</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+        </div>
+    <!-- The HTML structure remains the same -->
+    <script>
+        // Check if user is logged in
+        const currentUser = sessionStorage.getItem('currentUser');
+        if (!currentUser) {
+            window.location.href = 'login.html';
+        }
+
+        function logout() {
+            sessionStorage.removeItem('currentUser');
+            window.location.href = 'login.html';
+        }
+
+        let expenses = JSON.parse(localStorage.getItem(`expenses_${currentUser}`)) || [];
+
+        function addExpenseToTable(name, amount, category, date) {
+            const expense = {
+                id: Date.now(), // Add unique ID
+                name,
+                amount: parseFloat(amount),
+                category,
+                date
+            };
+            expenses.push(expense);
+            localStorage.setItem(`expenses_${currentUser}`, JSON.stringify(expenses));
+        }
+
+        function deleteExpense(button) {
+            const row = button.closest('tr');
+            const expenseId = parseInt(row.dataset.expenseId, 10);
+            const index = expenses.findIndex(expense => expense.id === expenseId);
+            if (index !== -1) {
+                expenses.splice(index, 1);
+                localStorage.setItem(`expenses_${currentUser}`, JSON.stringify(expenses));
+                const currentFilter = document.getElementById('filter-category').value;
+                loadExpenses(currentFilter);
+            }
+        }
+
+        function updateTotalAmount() {
+            const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+            document.getElementById('total-amount').textContent = total;
+        }
+
+        function loadExpenses(filterCategory = 'All') {
+            const expenseList = document.getElementById('expense-list');
+            expenseList.innerHTML = '';
+
+            // Filter expenses
+            let filteredExpenses = expenses.filter(expense => {
+                return filterCategory === 'All' || expense.category === filterCategory;
+            });
+
+            // Sort by date descending
+            filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // Render rows
+            filteredExpenses.forEach(expense => {
+                const row = document.createElement('tr');
+                row.dataset.expenseId = expense.id; // Set data attribute
+                row.innerHTML = `
+                    <td>${expense.name}</td>
+                    <td>Rs${expense.amount}</td>
+                    <td>${expense.category}</td>
+                    <td>${expense.date}</td>
+                    <td><button onclick="deleteExpense(this)">Delete</button></td>
+                `;
+                expenseList.appendChild(row);
+            });
+
+            updateTotalAmount();
+        }
+
+        document.getElementById('expense-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const rows = document.querySelectorAll('.input-row');
+
+            rows.forEach(row => {
+                const inputs = row.querySelectorAll('input, select');
+                const [nameInput, amountInput, categorySelect, dateInput] = inputs;
+
+                if (nameInput.value && amountInput.value && categorySelect.value && dateInput.value) {
+                    addExpenseToTable(
+                        nameInput.value,
+                        amountInput.value,
+                        categorySelect.value,
+                        dateInput.value
+                    );
+                    // Clear inputs
+                    nameInput.value = '';
+                    amountInput.value = '';
+                    categorySelect.selectedIndex = 0;
+                    dateInput.value = '';
+                }
+            });
+
+            // Refresh the table with current filter
+            const currentFilter = document.getElementById('filter-category').value;
+            loadExpenses(currentFilter);
+        });
+
+        // Rest of the event listeners remain the same
+        document.getElementById('add-row').addEventListener('click', () => {
+            const newRow = document.querySelector('.input-row').cloneNode(true);
+            newRow.querySelectorAll('input').forEach(input => input.value = '');
+            newRow.querySelector('select').selectedIndex = 0;
+            document.querySelector('.input-rows').appendChild(newRow);
+        });
+
+        document.getElementById('filter-category').addEventListener('change', (e) => {
+            loadExpenses(e.target.value);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadExpenses();
+        });
+    </script>
+</body>
+
+</html>
